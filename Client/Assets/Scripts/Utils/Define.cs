@@ -4,6 +4,17 @@ using UnityEngine;
 
 public class Define
 {
+    // Part 7-
+    public enum MoveDir
+    {
+        None,
+        Up,
+        Down,
+        Left,
+        Right,
+    }
+    // -Part 7
+
     public enum WorldObject
     {
         Unknown,

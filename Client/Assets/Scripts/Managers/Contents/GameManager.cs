@@ -32,7 +32,7 @@ public class GameManager
 
     }
 
-    public Define.WorldObject GetWorldObjectType(GameObject go)
+    /*public Define.WorldObject GetWorldObjectType(GameObject go)
     {
         BaseController bc = go.GetComponent<BaseController>();
         if (bc == null)
@@ -40,13 +40,13 @@ public class GameManager
 
         return bc.WorldObjectType;
         
-    }
+    }*/
 
     public void Despawn(GameObject go)
     {
-        Define.WorldObject type = GetWorldObjectType(go);
+        //Define.WorldObject type = GetWorldObjectType(go);
 
-        switch (type)
+        /*switch (type)
         {
             case Define.WorldObject.Monster:
                 {
@@ -64,7 +64,7 @@ public class GameManager
                 }
                 break;
 
-        }
+        }*/
 
         Managers.Resource.Destroy(go);
     }

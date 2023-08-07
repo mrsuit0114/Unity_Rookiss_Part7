@@ -1,192 +1,159 @@
 using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting;
+using UnityEditor.Rendering;
 using UnityEngine;
-using UnityEngine.AI;
+using static Define;
 
-public class PlayerController : BaseController
+public class PlayerController : MonoBehaviour
 {
-    PlayerStat _stat;
+    public Grid _grid;
+    public float _speed = 5.0f;
 
-    bool _stopSkill = false;
-    int _mask = 1<<(int)Define.Layer.Ground | 1<<(int)Define.Layer.Monster;
+    Vector3Int _cellPos = Vector3Int.zero;
+    bool _isMoving = false;
+    Animator _animator;
 
-    public override void Init()
+    MoveDir _dir = MoveDir.Down;
+    public MoveDir Dir
     {
-        WorldObjectType = Define.WorldObject.Player;
-        _stat = GetComponent<PlayerStat>();
-        /*Managers.Input.KeyAction -= OnKeyboard;  //두번 호출 방지
-        Managers.Input.KeyAction += OnKeyboard;*/
-        Managers.Input.MouseAction -= OnMouseEvent;
-        Managers.Input.MouseAction += OnMouseEvent;
-        anim = GetComponent<Animator>();
-
-        Managers.UI.MakeWorldSpaceUI<UI_HPBar>(transform);
-
-    }
-
-    protected override void UpdateMoving()
-    {
-        // 몬스터가 내 사정거리보다 가까우면 공격
-        if(_lockTarget != null)
+        get { return _dir; }
+        set
         {
-            _destPos = _lockTarget.transform.position;
-            float distance = (_lockTarget.transform.position - transform.position).magnitude;
-            if (distance <= 1.5f)
-            {
-                State = Define.State.Skill;
+            if (_dir == value)
                 return;
-            }
 
-
-        }
-
-
-        Vector3 dir = _destPos - transform.position;
-        dir.y = 0;
-        if (dir.magnitude < 0.1f)
-        {
-            State = Define.State.Idle;
-        }
-        else
-        {
-            Debug.DrawRay(transform.position + Vector3.up * 0.5f, dir.normalized, Color.yellow);
-            if(Physics.Raycast(transform.position, dir, 1.0f, LayerMask.GetMask("Block")))
+            switch (value)
             {
-                if(Input.GetMouseButton(0)==false)
-                    State = Define.State.Idle;
-                return;
-            }
-            float moveDist = Mathf.Clamp(_stat.MoveSpeed * Time.deltaTime, 0, dir.magnitude);
-            transform.position += dir.normalized * moveDist;
-            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir), Time.deltaTime * 14f);
-        }
-
-        //애니메이션
-        
-    }
-
-    protected override void UpdateSkill()
-    {
-        if(_lockTarget != null)
-        {
-            Vector3 dir = _lockTarget.transform.position - transform.position;
-            Quaternion quat = Quaternion.LookRotation(dir);
-            transform.rotation = Quaternion.Lerp(transform.rotation, quat, 20 * Time.deltaTime);
-
-        }
-        Debug.Log("UpdateSkill");
-    }
-
-    void OnHitEvent()
-    {
-        if(_lockTarget != null)
-        {
-            Stat targetStat = _lockTarget.GetComponent<Stat>();
-            //PlayerStat myStat = (PlayerStat)gameObject.GetComponent<Stat>();  // 상속받은 자식 클래스를 찾을수가있구나
-            // PlayerStat myStat = gameObject.GetComponent<PlayerStat>(); 
-            targetStat.OnAttacked(_stat);
-        }
-
-        if (_stopSkill)
-            State = Define.State.Idle;
-        else
-            State = Define.State.Skill;
-
-    }
-
-
-
-    
-
-    void OnMouseEvent(Define.MouseEvent evt)
-    {
-        switch (State)
-        {
-            case Define.State.Idle:
-                OnMouseEvent_IdleRun(evt);
-                break;
-            case Define.State.Moving:
-                OnMouseEvent_IdleRun(evt);
-                break;
-            case Define.State.Skill:
-                {
-                    if(evt == Define.MouseEvent.PointerUp)
-                        _stopSkill = true;
-                }
-                break;
-        }
-        
-    }
-
-    void OnMouseEvent_IdleRun(Define.MouseEvent evt)
-    {
-        RaycastHit hit;
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);  //메인 카메라 기준으로 해당 방향으로 쏜 ray
-        bool raycastHit = Physics.Raycast(ray, out hit, 100f, _mask);
-        //Debug.DrawRay(Camera.main.transform.position, ray.direction * 100f, Color.red, 1f);
-
-        switch (evt)
-        {
-            case Define.MouseEvent.PointerDown:
-                {
-                    if (raycastHit)
+                case MoveDir.Up:
+                    _animator.Play("WALK_BACK");
+                    transform.localScale = new Vector3(1.0f, 1.0f, 1.0f);
+                    break;
+                case MoveDir.Down:
+                    _animator.Play("WALK_FRONT");
+                    transform.localScale = new Vector3(1.0f, 1.0f, 1.0f);
+                    break;
+                case MoveDir.Left:
+                    _animator.Play("WALK_RIGHT");
+                    transform.localScale = new Vector3(-1.0f, 1.0f, 1.0f);
+                    break;
+                case MoveDir.Right:
+                    _animator.Play("WALK_RIGHT");
+                    transform.localScale = new Vector3(1.0f, 1.0f, 1.0f);
+                    break;
+                case MoveDir.None:
+                    if (_dir == MoveDir.Up)
                     {
-                        _destPos = hit.point;
-                        State = Define.State.Moving;
-                        _stopSkill = false;
-                        if (hit.collider.gameObject.layer == (int)Define.Layer.Monster)  // 몬스터
-                        {
-                            Debug.Log("monsterclicked");
-                            _lockTarget = hit.collider.gameObject;
-                        }
-                        else  // 땅
-                        {
-                            _lockTarget = null;
-                        }
+                        _animator.Play("IDLE_BACK");
+                        transform.localScale = new Vector3(1.0f, 1.0f, 1.0f);
                     }
-                }
-                break;
-            case Define.MouseEvent.Press:
-                {
-                    if (_lockTarget == null && raycastHit)
-                        _destPos = hit.point;
-                }
-                break;
-            case Define.MouseEvent.PointerUp:
-                _stopSkill = true;
-                break;
+                    else if (_dir == MoveDir.Down)
+                    {
+                        _animator.Play("IDLE_FRONT");
+                        transform.localScale = new Vector3(1.0f, 1.0f, 1.0f);
+                    }
+                    else if (_dir == MoveDir.Left)
+                    {
+                        _animator.Play("IDLE_RIGHT");
+                        transform.localScale = new Vector3(-1.0f, 1.0f, 1.0f);
+                    }
+                    else
+                    {
+                        _animator.Play("IDLE_RIGHT");
+                        transform.localScale = new Vector3(1.0f, 1.0f, 1.0f);
+                    }
+                    break;
+            }
+
+            _dir = value;
         }
     }
 
-    #region OnKeyBoard
-    /*void OnKeyboard()
+    void Start()
+    {
+        _animator = GetComponent<Animator>();
+        Vector3 pos = _grid.CellToWorld(_cellPos) + new Vector3(0.5f, 0.5f);
+        transform.position = pos;
+    }
+
+    void Update()
+    {
+        GetDirInput();
+        UpdatePosition();
+        UpdateIsMoving();
+    }
+
+    // 키보드 입력
+    void GetDirInput()
     {
         if (Input.GetKey(KeyCode.W))
         {
-            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(Vector3.forward), Time.deltaTime * 14f);
-            *//*transform.Translate(Vector3.forward * Time.deltaTime * _speed);*//*
-            transform.position += Vector3.forward * Time.deltaTime * _speed;
+            Dir = MoveDir.Up;
         }
-        if (Input.GetKey(KeyCode.S))
+        else if (Input.GetKey(KeyCode.S))
         {
-            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(Vector3.back), Time.deltaTime * 14f);
-            *//*transform.Translate(Vector3.forward * Time.deltaTime * _speed);*//*
-            transform.position += Vector3.back * Time.deltaTime * _speed;
+            Dir = MoveDir.Down;
         }
-        if (Input.GetKey(KeyCode.D))
+        else if (Input.GetKey(KeyCode.A))
         {
-            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(Vector3.right), Time.deltaTime * 14f);
-            *//*transform.Translate(Vector3.forward * Time.deltaTime * _speed);*//*
-            transform.position += Vector3.right * Time.deltaTime * _speed;
+            Dir = MoveDir.Left;
         }
-        if (Input.GetKey(KeyCode.A))
+        else if (Input.GetKey(KeyCode.D))
         {
-            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(Vector3.left), Time.deltaTime * 14f);
-            *//*transform.Translate(Vector3.forward * Time.deltaTime * _speed);*//*
-            transform.position += Vector3.left * Time.deltaTime * _speed;
+            Dir = MoveDir.Right;
         }
-        _moveToDest = false;
-    }*/
-    #endregion
+        else
+        {
+            Dir = MoveDir.None;
+        }
+    }
+
+    // 스르륵 이동하는 것을 처리
+    void UpdatePosition()
+    {
+        if (_isMoving == false)
+            return;
+
+        Vector3 destPos = _grid.CellToWorld(_cellPos) + new Vector3(0.5f, 0.5f);
+        Vector3 moveDir = destPos - transform.position;
+
+        // 도착 여부 체크
+        float dist = moveDir.magnitude;
+        if (dist < _speed * Time.deltaTime)
+        {
+            transform.position = destPos;
+            _isMoving = false;
+        }
+        else
+        {
+            transform.position += moveDir.normalized * _speed * Time.deltaTime;
+            _isMoving = true;
+        }
+    }
+
+    // 이동 가능한 상태일 때, 실제 좌표를 이동한다
+    void UpdateIsMoving()
+    {
+        if (_isMoving == false)
+        {
+            switch (_dir)
+            {
+                case MoveDir.Up:
+                    _cellPos += Vector3Int.up;
+                    _isMoving = true;
+                    break;
+                case MoveDir.Down:
+                    _cellPos += Vector3Int.down;
+                    _isMoving = true;
+                    break;
+                case MoveDir.Left:
+                    _cellPos += Vector3Int.left;
+                    _isMoving = true;
+                    break;
+                case MoveDir.Right:
+                    _cellPos += Vector3Int.right;
+                    _isMoving = true;
+                    break;
+            }
+        }
+    }
 }

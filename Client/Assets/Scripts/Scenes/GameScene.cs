@@ -16,10 +16,10 @@ public class GameScene : BaseScene
 
         Dictionary<int, Data.Stat> dict = Managers.Data.StatDict;
 
-        gameObject.GetOrAddComponent<CursorController>();
+        /*gameObject.GetOrAddComponent<CursorController>();
 
         GameObject player = Managers.Game.Spawn(Define.WorldObject.Player, "UnityChan");
-        Camera.main.gameObject.GetOrAddComponent<CameraController>().SetPlayer(player);
+        Camera.main.gameObject.GetOrAddComponent<CameraController>().SetPlayer(player);*/
 
         //Managers.Game.Spawn(Define.WorldObject.Monster, "Knight");
         GameObject go = new GameObject { name = "SpawningPool" };
