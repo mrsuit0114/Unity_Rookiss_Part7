@@ -5,6 +5,15 @@ using UnityEngine;
 public class Define
 {
     // Part 7-
+    
+    public enum CreatureState
+    {
+        Idle,
+        Moving,
+        Skill,
+        Dead,
+    }
+
     public enum MoveDir
     {
         None,
@@ -13,6 +22,7 @@ public class Define
         Left,
         Right,
     }
+
     // -Part 7
 
     public enum WorldObject
@@ -27,12 +37,6 @@ public class Define
         Moving,
         Idle,
         Skill,
-    }
-public enum Layer
-    {
-        Monster = 8,
-        Ground = 9,
-        Block = 10,
     }
     public enum Scene
     {
