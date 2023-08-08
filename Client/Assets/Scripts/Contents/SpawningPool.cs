@@ -23,11 +23,11 @@ public class SpawningPool : MonoBehaviour
 
     public void AddMonsterCount(int value) { _monsterCount += value; }
     public void SetKeepMonsterCount(int count) { _keepMonsterCount = count; }
-    void Start()
+    /*void Start()
     {
         Managers.Game.OnSpawnEvent -= AddMonsterCount;
         Managers.Game.OnSpawnEvent += AddMonsterCount;
-    }
+    }*/
 
     void Update()
     {
@@ -39,26 +39,7 @@ public class SpawningPool : MonoBehaviour
 
     IEnumerator ReserveSpawn()
     {
-        _reserveCount++;
-        yield return new WaitForSeconds(Random.Range(0,_spawnTime));
-        GameObject obj = Managers.Game.Spawn(Define.WorldObject.Monster, "Knight");
-        NavMeshAgent nma = obj.GetOrAddComponent<NavMeshAgent>();
-
-        Vector3 randPos;
-
-        while (true)
-        {
-            Vector3 randDir = Random.insideUnitSphere * Random.Range(0, _spawnRadius);
-            randDir.y = 0;
-            randPos = _spawnPos + randDir;
-
-            NavMeshPath path = new NavMeshPath();
-            if (nma.CalculatePath(randPos, path))
-                break;
-        }
-
-        obj.transform.position = randPos;
-        _reserveCount--;
+        yield return null;
     }
 
 }
