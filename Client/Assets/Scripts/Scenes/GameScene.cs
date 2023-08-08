@@ -15,6 +15,28 @@ public class GameScene : BaseScene
         // part 7 -
         Managers.Map.LoadMap(1);
 
+        GameObject player = Managers.Resource.Instantiate("Creature/Player");
+        player.name = "Player";
+        Managers.Object.Add(player);
+
+        for(int i =0; i<5; i++)
+        {
+            GameObject monster = Managers.Resource.Instantiate("Creature/Monster");
+            monster.name = $"Monster_{i+1}";
+
+            Vector3Int pos = new Vector3Int()
+            {
+                x = Random.Range(-15, 15),
+                y = Random.Range(-8, 8)
+            };
+
+            MonsterController mc = monster.GetComponent<MonsterController>();
+            mc.CellPos = pos;
+
+            Managers.Object.Add(monster);
+            
+        }
+
         // - part 7
 
 

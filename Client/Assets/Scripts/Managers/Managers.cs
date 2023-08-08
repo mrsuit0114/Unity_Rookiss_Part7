@@ -7,12 +7,16 @@ public class Managers : MonoBehaviour
     static Managers s_Instance;
     static Managers Instance{ get { Init(); return s_Instance; } }
 
+    // part 7 -
     #region Contents
     MapManager _map = new MapManager();
+    ObjectManager _obj = new ObjectManager();
 
     public static MapManager Map { get { return Instance._map; } }
+    public static ObjectManager Object { get {  return Instance._obj; } }
 
     #endregion
+    // - part 7
 
 
     #region Core
