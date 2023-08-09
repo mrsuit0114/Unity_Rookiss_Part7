@@ -95,7 +95,6 @@ public class PlayerController : CreatureController
         {
             case CreatureState.Idle:
                 GetDirInput();
-                GetIdleInput();
                 break;
             case CreatureState.Moving:
                 GetDirInput();
@@ -110,6 +109,24 @@ public class PlayerController : CreatureController
     {
         Camera.main.transform.position = new Vector3(transform.position.x, transform.position.y, transform.position.z - 10);
     }
+
+    protected override void UpdateIdle()
+    {
+        // 이동?
+        if(Dir != MoveDir.None)
+        {
+            State = CreatureState.Moving;
+            return;
+        }
+
+        // 스킬?
+        if (Input.GetKey(KeyCode.Space))
+        {
+            State = CreatureState.Skill;
+            _coSkill = StartCoroutine("CoStartShootArrow");
+        }
+    }
+
 
     // 키보드 입력
     void GetDirInput()
@@ -133,15 +150,6 @@ public class PlayerController : CreatureController
         else
         {
             Dir = MoveDir.None;
-        }
-    }
-
-    void GetIdleInput()
-    {
-        if (Input.GetKey(KeyCode.Space))
-        {
-            State = CreatureState.Skill;
-            _coSkill = StartCoroutine("CoStartShootArrow");
         }
     }
 
