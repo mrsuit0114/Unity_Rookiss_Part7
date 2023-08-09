@@ -1,228 +1,224 @@
-using System;
+ï»¿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+
 public struct Pos
 {
-    public Pos(int y, int x) { Y = y; X = x; }
-    public int Y;
-    public int X;
+	public Pos(int y, int x) { Y = y; X = x; }
+	public int Y;
+	public int X;
 }
 
 public struct PQNode : IComparable<PQNode>
 {
-    public int F;
-    public int G;
-    public int Y;
-    public int X;
+	public int F;
+	public int G;
+	public int Y;
+	public int X;
 
-    public int CompareTo(PQNode other)
-    {
-        if (F == other.F)
-            return 0;
-        return F < other.F ? 1 : -1;
-    }
+	public int CompareTo(PQNode other)
+	{
+		if (F == other.F)
+			return 0;
+		return F < other.F ? 1 : -1;
+	}
 }
-
-
 
 public class MapManager
 {
-    public Grid CurrentGrid { get; private set; }
+	public Grid CurrentGrid { get; private set; }
 
-    public int MinX { get; set; }
-    public int MaxX { get; set; }
-    public int MinY { get; set; }
-    public int MaxY { get; set; }
+	public int MinX { get; set; }
+	public int MaxX { get; set; }
+	public int MinY { get; set; }
+	public int MaxY { get; set; }
 
-    public int SizeX { get { return MaxX - MinX + 1; } }
-    public int SizeY { get { return MaxY - MinY + 1; } }
+	public int SizeX { get { return MaxX - MinX + 1; } }
+	public int SizeY { get { return MaxY - MinY + 1; } }
 
+	bool[,] _collision;
 
-    bool[,] _collision;
+	public bool CanGo(Vector3Int cellPos)
+	{
+		if (cellPos.x < MinX || cellPos.x > MaxX)
+			return false;
+		if (cellPos.y < MinY || cellPos.y > MaxY)
+			return false;
 
-    public bool CanGo(Vector3Int cellPos)
-    {
-        if(cellPos.x < MinX || cellPos.x>MaxX)
-            return false;
-        if(cellPos.y < MinY || cellPos.y>MaxY)
-            return false;
+		int x = cellPos.x - MinX;
+		int y = MaxY - cellPos.y;
+		return !_collision[y, x];
+	}
 
-        int x = cellPos.x - MinX;
-        int y = MaxY - cellPos.y;
-        return !_collision[y, x];
-    }
+	public void LoadMap(int mapId)
+	{
+		DestroyMap();
 
-    public void LoadMap(int mapId)
-    {
-        DestroyMap();
+		string mapName = "Map_" + mapId.ToString("000");
+		GameObject go = Managers.Resource.Instantiate($"Map/{mapName}");
+		go.name = "Map";
 
-        string mapName = "Map_" + mapId.ToString("000");  // ¼¼ÀÚ¸®¼ö Æ÷¸Ë ¾ÕÀ»0À¸·Î Ã¤¿ò
-        GameObject go = Managers.Resource.Instantiate($"Map/{mapName}");
-        go.name = "Map";
+		GameObject collision = Util.FindChild(go, "Tilemap_Collision", true);
+		if (collision != null)
+			collision.SetActive(false);
 
-        GameObject collision = Util.FindChild(go, "Tilemap_Collision", true);
-        if(collision != null )
-            collision.SetActive(false);
+		CurrentGrid = go.GetComponent<Grid>();
 
-        CurrentGrid = go.GetComponent<Grid>();
+		// Collision ê´€ë ¨ íŒŒì¼
+		TextAsset txt = Managers.Resource.Load<TextAsset>($"Map/{mapName}");
+		StringReader reader = new StringReader(txt.text);
 
+		MinX = int.Parse(reader.ReadLine());
+		MaxX = int.Parse(reader.ReadLine());
+		MinY = int.Parse(reader.ReadLine());
+		MaxY = int.Parse(reader.ReadLine());
 
-        // Collision °ü·Ã ÆÄÀÏ
-        TextAsset txt = Managers.Resource.Load<TextAsset>($"Map/{mapName}");
-        StringReader reader = new StringReader(txt.text);
+		int xCount = MaxX - MinX + 1;
+		int yCount = MaxY - MinY + 1;
+		_collision = new bool[yCount, xCount];
 
-        MinX = int.Parse(reader.ReadLine());
-        MaxX = int.Parse(reader.ReadLine());
-        MinY = int.Parse(reader.ReadLine());
-        MaxY = int.Parse(reader.ReadLine());
+		for (int y = 0; y < yCount; y++)
+		{
+			string line = reader.ReadLine();
+			for (int x = 0; x < xCount; x++)
+			{
+				_collision[y, x] = (line[x] == '1' ? true : false);
+			}
+		}
+	}
 
-        int xCount = MaxX - MinX + 1;
-        int yCount = MaxY - MinY + 1;
-        _collision = new bool[yCount, xCount];
+	public void DestroyMap()
+	{
+		GameObject map = GameObject.Find("Map");
+		if (map != null)
+		{
+			GameObject.Destroy(map);
+			CurrentGrid = null;
+		}
+	}
 
-        for(int y=0; y<yCount; y++)
-        {
-            string line = reader.ReadLine();
-            for(int x=0; x<xCount; x++)
-            {
-                _collision[y,x] = (line[x]=='1');
-            }
-        }
+	#region A* PathFinding
 
+	// U D L R
+	int[] _deltaY = new int[] { 1, -1, 0, 0 };
+	int[] _deltaX = new int[] { 0, 0, -1, 1 };
+	int[] _cost = new int[] { 10, 10, 10, 10 };
 
-    }
-    public void DestroyMap()
-    {
-        GameObject map = GameObject.Find("Map");
-        if(map != null)
-        {
-            GameObject.Destroy(map);
-            CurrentGrid = null;
-        }
-    }
+	public List<Vector3Int> FindPath(Vector3Int startCellPos, Vector3Int destCellPos, bool ignoreDestCollision = false)
+	{
+		List<Pos> path = new List<Pos>();
 
-    #region A* PathFinding
+		// ì ìˆ˜ ë§¤ê¸°ê¸°
+		// F = G + H
+		// F = ìµœì¢… ì ìˆ˜ (ì‘ì„ ìˆ˜ë¡ ì¢‹ìŒ, ê²½ë¡œì— ë”°ë¼ ë‹¬ë¼ì§)
+		// G = ì‹œì‘ì ì—ì„œ í•´ë‹¹ ì¢Œí‘œê¹Œì§€ ì´ë™í•˜ëŠ”ë° ë“œëŠ” ë¹„ìš© (ì‘ì„ ìˆ˜ë¡ ì¢‹ìŒ, ê²½ë¡œì— ë”°ë¼ ë‹¬ë¼ì§)
+		// H = ëª©ì ì§€ì—ì„œ ì–¼ë§ˆë‚˜ ê°€ê¹Œìš´ì§€ (ì‘ì„ ìˆ˜ë¡ ì¢‹ìŒ, ê³ ì •)
 
-    // U D L R
-    int[] _deltaY = new int[] { 1, -1, 0, 0 };
-    int[] _deltaX = new int[] { 0, 0, -1, 1 };
-    int[] _cost = new int[] { 10, 10, 10, 10 };
+		// (y, x) ì´ë¯¸ ë°©ë¬¸í–ˆëŠ”ì§€ ì—¬ë¶€ (ë°©ë¬¸ = closed ìƒíƒœ)
+		bool[,] closed = new bool[SizeY, SizeX]; // CloseList
 
-    public List<Vector3Int> FindPath(Vector3Int startCellPos, Vector3Int destCellPos, bool ignoreDestCollision = false)
-    {
-        List<Pos> path = new List<Pos>();
+		// (y, x) ê°€ëŠ” ê¸¸ì„ í•œ ë²ˆì´ë¼ë„ ë°œê²¬í–ˆëŠ”ì§€
+		// ë°œê²¬X => MaxValue
+		// ë°œê²¬O => F = G + H
+		int[,] open = new int[SizeY, SizeX]; // OpenList
+		for (int y = 0; y < SizeY; y++)
+			for (int x = 0; x < SizeX; x++)
+				open[y, x] = Int32.MaxValue;
 
-        // Á¡¼ö ¸Å±â±â
-        // F = G + H
-        // F = ÃÖÁ¾ Á¡¼ö (ÀÛÀ» ¼ö·Ï ÁÁÀ½, °æ·Î¿¡ µû¶ó ´Ş¶óÁü)
-        // G = ½ÃÀÛÁ¡¿¡¼­ ÇØ´ç ÁÂÇ¥±îÁö ÀÌµ¿ÇÏ´Âµ¥ µå´Â ºñ¿ë (ÀÛÀ» ¼ö·Ï ÁÁÀ½, °æ·Î¿¡ µû¶ó ´Ş¶óÁü)
-        // H = ¸ñÀûÁö¿¡¼­ ¾ó¸¶³ª °¡±î¿îÁö (ÀÛÀ» ¼ö·Ï ÁÁÀ½, °íÁ¤)
+		Pos[,] parent = new Pos[SizeY, SizeX];
 
-        // (y, x) ÀÌ¹Ì ¹æ¹®Çß´ÂÁö ¿©ºÎ (¹æ¹® = closed »óÅÂ)
-        bool[,] closed = new bool[SizeY, SizeX]; // CloseList
+		// ì˜¤í”ˆë¦¬ìŠ¤íŠ¸ì— ìˆëŠ” ì •ë³´ë“¤ ì¤‘ì—ì„œ, ê°€ì¥ ì¢‹ì€ í›„ë³´ë¥¼ ë¹ ë¥´ê²Œ ë½‘ì•„ì˜¤ê¸° ìœ„í•œ ë„êµ¬
+		PriorityQueue<PQNode> pq = new PriorityQueue<PQNode>();
 
-        // (y, x) °¡´Â ±æÀ» ÇÑ ¹øÀÌ¶óµµ ¹ß°ßÇß´ÂÁö
-        // ¹ß°ßX => MaxValue
-        // ¹ß°ßO => F = G + H
-        int[,] open = new int[SizeY, SizeX]; // OpenList
-        for (int y = 0; y < SizeY; y++)
-            for (int x = 0; x < SizeX; x++)
-                open[y, x] = Int32.MaxValue;
+		// CellPos -> ArrayPos
+		Pos pos = Cell2Pos(startCellPos);
+		Pos dest = Cell2Pos(destCellPos);
 
-        Pos[,] parent = new Pos[SizeY, SizeX];
+		// ì‹œì‘ì  ë°œê²¬ (ì˜ˆì•½ ì§„í–‰)
+		open[pos.Y, pos.X] = 10 * (Math.Abs(dest.Y - pos.Y) + Math.Abs(dest.X - pos.X));
+		pq.Push(new PQNode() { F = 10 * (Math.Abs(dest.Y - pos.Y) + Math.Abs(dest.X - pos.X)), G = 0, Y = pos.Y, X = pos.X });
+		parent[pos.Y, pos.X] = new Pos(pos.Y, pos.X);
 
-        // ¿ÀÇÂ¸®½ºÆ®¿¡ ÀÖ´Â Á¤º¸µé Áß¿¡¼­, °¡Àå ÁÁÀº ÈÄº¸¸¦ ºü¸£°Ô »Ì¾Æ¿À±â À§ÇÑ µµ±¸
-        PriorityQueue<PQNode> pq = new PriorityQueue<PQNode>();
+		while (pq.Count > 0)
+		{
+			// ì œì¼ ì¢‹ì€ í›„ë³´ë¥¼ ì°¾ëŠ”ë‹¤
+			PQNode node = pq.Pop();
+			// ë™ì¼í•œ ì¢Œí‘œë¥¼ ì—¬ëŸ¬ ê²½ë¡œë¡œ ì°¾ì•„ì„œ, ë” ë¹ ë¥¸ ê²½ë¡œë¡œ ì¸í•´ì„œ ì´ë¯¸ ë°©ë¬¸(closed)ëœ ê²½ìš° ìŠ¤í‚µ
+			if (closed[node.Y, node.X])
+				continue;
 
-        // CellPos -> ArrayPos
-        Pos pos = Cell2Pos(startCellPos);
-        Pos dest = Cell2Pos(destCellPos);
+			// ë°©ë¬¸í•œë‹¤
+			closed[node.Y, node.X] = true;
+			// ëª©ì ì§€ ë„ì°©í–ˆìœ¼ë©´ ë°”ë¡œ ì¢…ë£Œ
+			if (node.Y == dest.Y && node.X == dest.X)
+				break;
 
-        // ½ÃÀÛÁ¡ ¹ß°ß (¿¹¾à ÁøÇà)
-        open[pos.Y, pos.X] = 10 * (Math.Abs(dest.Y - pos.Y) + Math.Abs(dest.X - pos.X));
-        pq.Push(new PQNode() { F = 10 * (Math.Abs(dest.Y - pos.Y) + Math.Abs(dest.X - pos.X)), G = 0, Y = pos.Y, X = pos.X });
-        parent[pos.Y, pos.X] = new Pos(pos.Y, pos.X);
+			// ìƒí•˜ì¢Œìš° ë“± ì´ë™í•  ìˆ˜ ìˆëŠ” ì¢Œí‘œì¸ì§€ í™•ì¸í•´ì„œ ì˜ˆì•½(open)í•œë‹¤
+			for (int i = 0; i < _deltaY.Length; i++)
+			{
+				Pos next = new Pos(node.Y + _deltaY[i], node.X + _deltaX[i]);
 
-        while (pq.Count > 0)
-        {
-            // Á¦ÀÏ ÁÁÀº ÈÄº¸¸¦ Ã£´Â´Ù
-            PQNode node = pq.Pop();
-            // µ¿ÀÏÇÑ ÁÂÇ¥¸¦ ¿©·¯ °æ·Î·Î Ã£¾Æ¼­, ´õ ºü¸¥ °æ·Î·Î ÀÎÇØ¼­ ÀÌ¹Ì ¹æ¹®(closed)µÈ °æ¿ì ½ºÅµ
-            if (closed[node.Y, node.X])
-                continue;
+				// ìœ íš¨ ë²”ìœ„ë¥¼ ë²—ì–´ë‚¬ìœ¼ë©´ ìŠ¤í‚µ
+				// ë²½ìœ¼ë¡œ ë§‰í˜€ì„œ ê°ˆ ìˆ˜ ì—†ìœ¼ë©´ ìŠ¤í‚µ
+				if (!ignoreDestCollision || next.Y != dest.Y || next.X != dest.X)
+				{
+					if (CanGo(Pos2Cell(next)) == false) // CellPos
+						continue;
+				}
+				
+				// ì´ë¯¸ ë°©ë¬¸í•œ ê³³ì´ë©´ ìŠ¤í‚µ
+				if (closed[next.Y, next.X])
+					continue;
 
-            // ¹æ¹®ÇÑ´Ù
-            closed[node.Y, node.X] = true;
-            // ¸ñÀûÁö µµÂøÇßÀ¸¸é ¹Ù·Î Á¾·á
-            if (node.Y == dest.Y && node.X == dest.X)
-                break;
+				// ë¹„ìš© ê³„ì‚°
+				int g = 0;// node.G + _cost[i];
+				int h = 10 * ((dest.Y - next.Y) * (dest.Y - next.Y) + (dest.X - next.X) * (dest.X - next.X));
+				// ë‹¤ë¥¸ ê²½ë¡œì—ì„œ ë” ë¹ ë¥¸ ê¸¸ ì´ë¯¸ ì°¾ì•˜ìœ¼ë©´ ìŠ¤í‚µ
+				if (open[next.Y, next.X] < g + h)
+					continue;
 
-            // »óÇÏÁÂ¿ì µî ÀÌµ¿ÇÒ ¼ö ÀÖ´Â ÁÂÇ¥ÀÎÁö È®ÀÎÇØ¼­ ¿¹¾à(open)ÇÑ´Ù
-            for (int i = 0; i < _deltaY.Length; i++)
-            {
-                Pos next = new Pos(node.Y + _deltaY[i], node.X + _deltaX[i]);
+				// ì˜ˆì•½ ì§„í–‰
+				open[dest.Y, dest.X] = g + h;
+				pq.Push(new PQNode() { F = g + h, G = g, Y = next.Y, X = next.X });
+				parent[next.Y, next.X] = new Pos(node.Y, node.X);
+			}
+		}
 
-                // À¯È¿ ¹üÀ§¸¦ ¹ş¾î³µÀ¸¸é ½ºÅµ
-                // º®À¸·Î ¸·Çô¼­ °¥ ¼ö ¾øÀ¸¸é ½ºÅµ
-                if (!ignoreDestCollision || next.Y != dest.Y || next.X != dest.X)
-                {
-                    if (CanGo(Pos2Cell(next)) == false) // CellPos
-                        continue;
-                }
+		return CalcCellPathFromParent(parent, dest);
+	}
 
-                // ÀÌ¹Ì ¹æ¹®ÇÑ °÷ÀÌ¸é ½ºÅµ
-                if (closed[next.Y, next.X])
-                    continue;
+	List<Vector3Int> CalcCellPathFromParent(Pos[,] parent, Pos dest)
+	{
+		List<Vector3Int> cells = new List<Vector3Int>();
 
-                // ºñ¿ë °è»ê
-                int g = 0;// node.G + _cost[i];
-                int h = 10 * ((dest.Y - next.Y) * (dest.Y - next.Y) + (dest.X - next.X) * (dest.X - next.X));
-                // ´Ù¸¥ °æ·Î¿¡¼­ ´õ ºü¸¥ ±æ ÀÌ¹Ì Ã£¾ÒÀ¸¸é ½ºÅµ
-                if (open[next.Y, next.X] < g + h)
-                    continue;
+		int y = dest.Y;
+		int x = dest.X;
+		while (parent[y, x].Y != y || parent[y, x].X != x)
+		{
+			cells.Add(Pos2Cell(new Pos(y, x)));
+			Pos pos = parent[y, x];
+			y = pos.Y;
+			x = pos.X;
+		}
+		cells.Add(Pos2Cell(new Pos(y, x)));
+		cells.Reverse();
 
-                // ¿¹¾à ÁøÇà
-                open[dest.Y, dest.X] = g + h;
-                pq.Push(new PQNode() { F = g + h, G = g, Y = next.Y, X = next.X });
-                parent[next.Y, next.X] = new Pos(node.Y, node.X);
-            }
-        }
+		return cells;
+	}
 
-        return CalcCellPathFromParent(parent, dest);
-    }
+	Pos Cell2Pos(Vector3Int cell)
+	{
+		// CellPos -> ArrayPos
+		return new Pos(MaxY - cell.y, cell.x - MinX);
+	}
 
-    List<Vector3Int> CalcCellPathFromParent(Pos[,] parent, Pos dest)
-    {
-        List<Vector3Int> cells = new List<Vector3Int>();
+	Vector3Int Pos2Cell(Pos pos)
+	{
+		// ArrayPos -> CellPos
+		return new Vector3Int(pos.X + MinX, MaxY - pos.Y, 0);
+	}
 
-        int y = dest.Y;
-        int x = dest.X;
-        while (parent[y, x].Y != y || parent[y, x].X != x)
-        {
-            cells.Add(Pos2Cell(new Pos(y, x)));
-            Pos pos = parent[y, x];
-            y = pos.Y;
-            x = pos.X;
-        }
-        cells.Add(Pos2Cell(new Pos(y, x)));
-        cells.Reverse();
-
-        return cells;
-    }
-
-    Pos Cell2Pos(Vector3Int cell)
-    {
-        // CellPos -> ArrayPos
-        return new Pos(MaxY - cell.y, cell.x - MinX);
-    }
-
-    Vector3Int Pos2Cell(Pos pos)
-    {
-        // ArrayPos -> CellPos
-        return new Vector3Int(pos.X + MinX, MaxY - pos.Y, 0);
-    }
-
-    #endregion
+	#endregion
 }

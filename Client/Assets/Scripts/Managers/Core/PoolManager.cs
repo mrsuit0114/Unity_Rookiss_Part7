@@ -1,33 +1,30 @@
-using System.Collections;
+Ôªøusing System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class PoolManager
 {
-    #region Pool
-    class Pool
+	#region Pool
+	class Pool
     {
         public GameObject Original { get; private set; }
         public Transform Root { get; set; }
-
 
         Stack<Poolable> _poolStack = new Stack<Poolable>();
 
         public void Init(GameObject original, int count = 5)
         {
             Original = original;
-            /*Root = new GameObject().transform;
-            Root.name = $"{original.name}_Root";*/
-            Root = new GameObject { name = $"{original.name}_Root" }.transform;
+            Root = new GameObject().transform;
+            Root.name = $"{original.name}_Root";
 
-            for(int i = 0; i < count; i++)
+            for (int i = 0; i < count; i++)
                 Push(Create());
-
         }
 
         Poolable Create()
         {
-            GameObject go = Object.Instantiate(Original);
+            GameObject go = Object.Instantiate<GameObject>(Original);
             go.name = Original.name;
             return go.GetOrAddComponent<Poolable>();
         }
@@ -36,10 +33,10 @@ public class PoolManager
         {
             if (poolable == null)
                 return;
-            
+
             poolable.transform.parent = Root;
             poolable.gameObject.SetActive(false);
-            poolable.isUsing = false;
+            poolable.IsUsing = false;
 
             _poolStack.Push(poolable);
         }
@@ -55,29 +52,24 @@ public class PoolManager
 
             poolable.gameObject.SetActive(true);
 
-            // DontDestroyOnLoad «ÿ¡¶ øÎµµ
-            if(parent == null)
-            {
+            // DontDestroyOnLoad Ìï¥Ï†ú Ïö©ÎèÑ
+            if (parent == null)
                 poolable.transform.parent = Managers.Scene.CurrentScene.transform;
-            }
 
             poolable.transform.parent = parent;
-            poolable.isUsing=true;
+            poolable.IsUsing = true;
 
             return poolable;
-
         }
-
     }
-    #endregion
+	#endregion
 
-    Dictionary<string, Pool> _pool = new Dictionary<string, Pool>();
-
+	Dictionary<string, Pool> _pool = new Dictionary<string, Pool>();
     Transform _root;
 
     public void Init()
     {
-        if( _root == null)
+        if (_root == null)
         {
             _root = new GameObject { name = "@Pool_Root" }.transform;
             Object.DontDestroyOnLoad(_root);
@@ -88,15 +80,15 @@ public class PoolManager
     {
         Pool pool = new Pool();
         pool.Init(original, count);
-        pool.Root.parent = _root;  //∏µÁ «Æ ∑Á∆Æ¿« ∫Œ∏∏¶ «ÿ¥Á «Æ ∑Á∆Æ¿« ∫Œ∏∑Œ º≥¡§
+        pool.Root.parent = _root;
 
         _pool.Add(original.name, pool);
     }
 
     public void Push(Poolable poolable)
     {
-        string name = poolable.name;  // poolable.gameObject.name  to check
-        if(_pool.ContainsKey(name) == false)
+        string name = poolable.gameObject.name;
+        if (_pool.ContainsKey(name) == false)
         {
             GameObject.Destroy(poolable.gameObject);
             return;
@@ -122,10 +114,9 @@ public class PoolManager
 
     public void Clear()
     {
-        foreach(Transform child in _root)
+        foreach (Transform child in _root)
             GameObject.Destroy(child.gameObject);
-        
+
         _pool.Clear();
     }
-
 }

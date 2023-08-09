@@ -1,23 +1,23 @@
-using System.Collections;
+癤퓎sing System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
 using UnityEngine;
 
-// 기능성 함수를 위한 스크립트
 public class Util
 {
     public static T GetOrAddComponent<T>(GameObject go) where T : UnityEngine.Component
     {
         T component = go.GetComponent<T>();
-        if (component == null)
+		if (component == null)
             component = go.AddComponent<T>();
         return component;
-    }
+	}
+
     public static GameObject FindChild(GameObject go, string name = null, bool recursive = false)
     {
         Transform transform = FindChild<Transform>(go, name, recursive);
-        if(transform == null)
+        if (transform == null)
             return null;
+        
         return transform.gameObject;
     }
 
@@ -38,16 +38,18 @@ public class Util
                         return component;
                 }
             }
-        }
+		}
         else
         {
-            foreach(T component in go.GetComponentsInChildren<T>())
+            foreach (T component in go.GetComponentsInChildren<T>())
             {
-                if(string.IsNullOrEmpty(name) || component.name == name)  // 이름이 같거나 혹은 이름이 없을 때 타입만 같은 컴포넌트 반환
+                if (string.IsNullOrEmpty(name) || component.name == name)
                     return component;
             }
         }
 
         return null;
-    } 
+    }
+
+
 }
