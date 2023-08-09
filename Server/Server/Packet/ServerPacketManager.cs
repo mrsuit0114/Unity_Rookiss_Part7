@@ -1,3 +1,5 @@
+using Google.Protobuf;
+using Google.Protobuf.Examples.Protocol;
 using ServerCore;
 using System;
 using System.Collections.Generic;
@@ -16,20 +18,18 @@ public class PacketManager
         Register();
     }
 
-    Dictionary<ushort, Func<PacketSession, ArraySegment<byte>, IPacket>> _makeFunc = new Dictionary<ushort, Func<PacketSession, ArraySegment<byte>,IPacket>>();
-    Dictionary<ushort, Action<PacketSession, IPacket>> _handler = new Dictionary<ushort, Action<PacketSession, IPacket>>();
+    Dictionary<ushort, Func<PacketSession, ArraySegment<byte>, IMessage>> _makeFunc = new Dictionary<ushort, Func<PacketSession, ArraySegment<byte>, IMessage>>();
+    Dictionary<ushort, Action<PacketSession, IMessage>> _handler = new Dictionary<ushort, Action<PacketSession, IMessage>>();
 
 
     public void Register()
     {
-        _makeFunc.Add((ushort)PacketID.C_LeaveGame, MakePacket<C_LeaveGame>);
+        _makeFunc.Add((ushort)MsgId.CChat, MakePacket<C_Chat>);
         _handler.Add((ushort)PacketID.C_LeaveGame, PacketHandler.C_LeaveGameHandler);
-      _makeFunc.Add((ushort)PacketID.C_Move, MakePacket<C_Move>);
-        _handler.Add((ushort)PacketID.C_Move, PacketHandler.C_MoveHandler);
 
     }
 
-    public void OnRecvPacket(PacketSession session, ArraySegment<byte> buffer, Action<PacketSession, IPacket> onRecvCallback = null)
+    public void OnRecvPacket(PacketSession session, ArraySegment<byte> buffer, Action<PacketSession, IMessage> onRecvCallback = null)
     {
         ushort count = 0;
 
@@ -38,10 +38,10 @@ public class PacketManager
         ushort id = BitConverter.ToUInt16(buffer.Array, buffer.Offset + count);
         count += 2;
 
-        Func < PacketSession, ArraySegment<byte>, IPacket > func = null;
+        Func < PacketSession, ArraySegment<byte>, IMessage> func = null;
         if(_makeFunc.TryGetValue(id, out func))
         {
-            IPacket packet = func.Invoke(session, buffer);
+            IMessage packet = func.Invoke(session, buffer);
             if(onRecvCallback != null)
                 onRecvCallback.Invoke(session,packet);
             else
@@ -50,16 +50,16 @@ public class PacketManager
     }
         
     // T는 new가 가능해야한다고 말하면서 이렇게 사용함
-    T MakePacket<T>(PacketSession session, ArraySegment<byte> buffer) where T : IPacket, new()
+    T MakePacket<T>(PacketSession session, ArraySegment<byte> buffer) where T : IMessage, new()
     {
         T p = new T();
         p.Read(buffer);
         return p;
     }
 
-    public void HandlePacket(PacketSession session, IPacket packet)
+    public void HandlePacket(PacketSession session, IMessage packet)
     {
-        Action<PacketSession, IPacket> action = null;
+        Action<PacketSession, IMessage> action = null;
         if (_handler.TryGetValue(packet.Protocol, out action))
             action.Invoke(session, packet);
     }

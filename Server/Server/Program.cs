@@ -1,5 +1,7 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
+using Google.Protobuf;
+using Google.Protobuf.Examples.Protocol;
 using Server;
 using Server.Session;
 using ServerCore;
@@ -7,25 +9,21 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using static Google.Protobuf.Examples.Protocol.Person.Types;
 
 class Program{
     static Listener _listener = new Listener();
-    public static GameRoom Room = new GameRoom();
 
     static void FlushRoom()
     {
-        Room.Push(() => Room.Flush());
         JobTimer.Instance.Push(FlushRoom, 250);
     }
 
     static void Main(string[] args)
     {
         string host = Dns.GetHostName();
-        //Console.WriteLine(host);
         IPHostEntry ipHost = Dns.GetHostEntry(host);
-        //Console.WriteLine(ipHost);
         IPAddress ipAddr = ipHost.AddressList[0];
-        //Console.WriteLine(ipAddr);
         IPEndPoint endPoint = new IPEndPoint(ipAddr, 7777);
 
 
