@@ -6,16 +6,23 @@ using static Define;
 public class MonsterController : CreatureController
 {
     Coroutine _coPatrol;
+    Coroutine _coSkill;
     Coroutine _coSearch;
 
     [SerializeField]
     GameObject _target;
 
     [SerializeField]
-    float _searchRange = 5f;
+    float _searchRange = 15f;
+
+    [SerializeField]
+    float _skillRange = 1f;
 
     [SerializeField]
     Vector3Int _destCellPos;
+
+    [SerializeField]
+    bool _rangedSkill = false;
 
     public override CreatureState State
     {
@@ -46,6 +53,12 @@ public class MonsterController : CreatureController
         Dir = MoveDir.None;
 
         _speed = 3f;
+        _rangedSkill = (Random.Range(0,2) == 0 ? true : false);
+
+        if (_rangedSkill)
+            _skillRange = 10f;
+        else
+            _skillRange = 1f;
     }
 
     protected override void UpdateIdle()
@@ -68,10 +81,25 @@ public class MonsterController : CreatureController
         if(_target != null)
         {
             destPos = _target.GetComponent<CreatureController>().CellPos;
+
+            Vector3Int dir = destPos - CellPos;
+            if(dir.magnitude <= _skillRange && (dir.x == 0|| dir.y==0))
+            {
+
+                Dir = GetDirFromVec(dir);
+                State = CreatureState.Skill;
+
+                if(_rangedSkill)
+                    _coSkill = StartCoroutine("CoStartShootArrow");
+                else
+                    _coSkill = StartCoroutine("CoStartPunch");
+
+                return;
+            }
         }
 
         List<Vector3Int> path = Managers.Map.FindPath(CellPos, destPos, ignoreDestCollision: true);
-        if (path.Count < 2 || (_target != null && path.Count >10))  // 길을 못찾는경우, 리스트에 뭘반환하길래 이런 조건이? 몇번움직이는지 같은데?
+        if (path.Count < 2 || (_target != null && path.Count >20))  // 길을 못찾는경우, 리스트에 뭘반환하길래 이런 조건이? 몇번움직이는지 같은데?
         // 아마 리스트에 어디로 움직여야하는지 한칸단위로 저장해놓은듯
         {
             _target = null;
@@ -82,16 +110,7 @@ public class MonsterController : CreatureController
         Vector3Int nextPos = path[1];
 
         Vector3Int moveCellDir = nextPos - CellPos;
-        if (moveCellDir.x > 0)
-            Dir = MoveDir.Right;
-        else if (moveCellDir.x < 0)
-            Dir = MoveDir.Left;
-        else if (moveCellDir.y > 0)
-            Dir = MoveDir.Up;
-        else if (moveCellDir.y < 0)
-            Dir = MoveDir.Down;
-        else
-            Dir = MoveDir.None;
+        Dir = GetDirFromVec(moveCellDir);
 
         if (Managers.Map.CanGo(nextPos) && Managers.Object.Find(nextPos) == null)
         {
@@ -162,6 +181,38 @@ public class MonsterController : CreatureController
             });
 
         }
+    }
+
+    IEnumerator CoStartPunch()
+    {
+        // 피격 판정
+        GameObject go = Managers.Object.Find(GetFrontCellPos());
+        if (go != null)
+        {
+            CreatureController cc = go.GetComponent<CreatureController>();
+            if (cc != null)
+                cc.OnDamaged();
+        }
+
+
+        //대기 시간
+        yield return new WaitForSeconds(0.5f);
+        State = CreatureState.Moving;
+        _coSkill = null;
+
+    }
+
+    IEnumerator CoStartShootArrow()
+    {
+        GameObject go = Managers.Resource.Instantiate("Creature/Arrow");
+        ArrowController ac = go.GetComponent<ArrowController>();
+        ac.Dir = _lastDir;
+        ac.CellPos = CellPos;
+
+        // 대기시간
+        yield return new WaitForSeconds(0.3f);
+        State = CreatureState.Moving;
+        _coSkill = null;
     }
 
 }
