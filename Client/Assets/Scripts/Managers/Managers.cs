@@ -36,7 +36,7 @@ public class Managers : MonoBehaviour
 	void Start()
     {
         Init();
-	}
+    }
 
     void Update()
     {
