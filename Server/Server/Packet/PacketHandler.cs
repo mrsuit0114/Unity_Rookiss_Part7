@@ -1,6 +1,7 @@
 ﻿using Google.Protobuf;
 using Google.Protobuf.Protocol;
 using Server;
+using Server.Game;
 using ServerCore;
 using System;
 using System.Collections.Generic;
@@ -15,19 +16,33 @@ class PacketHandler
 
         Console.WriteLine($"C_Move {movePacket.PosInfo.PosX},{movePacket.PosInfo.PosY}");
 
-		// TODO : 검증
-
-		// 서버에서 좌표이동
-		PlayerInfo info = clientSession?.MyPlayer?.Info;
-		if (info == null)
+		Player player = clientSession.MyPlayer;
+		if (player == null)
 			return;
-		info.PosInfo = movePacket.PosInfo;
 
-		// 다른 플레이어에게 알림
-		S_Move resMovePacket = new S_Move();
-		resMovePacket.PlayerId = clientSession.MyPlayer.Info.PlayerId;
-		resMovePacket.PosInfo = movePacket.PosInfo;
+		GameRoom room = player.Room;
+		if (room == null)
+			return;
 
-		clientSession.MyPlayer.Room.Broadcast(resMovePacket);
+
+		room.HandleMove(player, movePacket);
+
+    }
+
+    public static void C_SkillHandler(PacketSession session, IMessage packet)
+	{
+        C_Skill skillPacket = packet as C_Skill;
+        ClientSession clientSession = session as ClientSession;
+
+        Player player = clientSession.MyPlayer;
+        if (player == null)
+            return;
+
+        GameRoom room = player.Room;
+        if (room == null)
+            return;
+
+        room.HandleSkill(player, skillPacket);
+
     }
 }
