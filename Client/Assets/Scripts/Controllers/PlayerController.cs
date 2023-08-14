@@ -103,22 +103,32 @@ public class PlayerController : CreatureController
 		}
 	}
 
-	IEnumerator CoStartPunch()
+	public void UseSkill(int skillId)
 	{
-		// 피격 판정
-		GameObject go = Managers.Object.Find(GetFrontCellPos());
-		if (go != null)
+		switch(skillId)
 		{
-			CreatureController cc = go.GetComponent<CreatureController>();
-			if (cc != null)
-				cc.OnDamaged();
+			case 1:
+				_coSkill = StartCoroutine("CoStartPunch");
+				break;
+			case 2:
+				break;
 		}
+	}
 
+    protected virtual void CheckUpdatedFlag()
+    {
+
+    }
+
+    IEnumerator CoStartPunch()
+	{
 		// 대기 시간
 		_rangedSkill = false;
+		State = CreatureState.Skill;
 		yield return new WaitForSeconds(0.5f);
 		State = CreatureState.Idle;
 		_coSkill = null;
+		CheckUpdatedFlag();  // MyPla~.cs를 위한 용도
 	}
 
 	IEnumerator CoStartShootArrow()
