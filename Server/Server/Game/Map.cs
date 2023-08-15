@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -76,12 +77,43 @@ namespace Server.Game
             return !_collision[y, x] && (!checkObjects || _players[y,x] == null);
         }
 
+        public Player Find(Vector2Int cellPos)
+        {
+            if (cellPos.x < MinX || cellPos.x > MaxX)
+                return null;
+            if (cellPos.y < MinY || cellPos.y > MaxY)
+                return null;
+
+            int x = cellPos.x - MinX;
+            int y = MaxY - cellPos.y;
+            return _players[y, x];
+        }
+
         public bool ApplyMove(Player player, Vector2Int dest)
         {
             PositionInfo posInfo = player.Info.PosInfo;
-
-            if (CanGo(dest, true) == false)
+            // 범위 예외처리
+            if (posInfo.PosX < MinX || posInfo.PosX > MaxX)
                 return false;
+            if (posInfo.PosY < MinY || posInfo.PosY > MaxY)
+                return false;
+            if(CanGo(dest , true) == false) return false;
+            
+            // 내 현재위치를 null로 밀고
+            int x = posInfo.PosX - MinX;
+            int y = MaxY - posInfo.PosY;
+            if (_players[y, x] == player)
+                _players[y, x] = null;
+
+            // 목적지에 player 입력
+            x = dest.x - MinX;
+            y = MaxY - dest.y;
+            _players[y, x] = player;
+
+            // 실제 좌표 이동
+            posInfo.PosX = dest.x;
+            posInfo.PosY = dest.y;
+
 
             return true;
         }
